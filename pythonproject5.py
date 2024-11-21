@@ -3,7 +3,56 @@ import random
 import tkinter as tk
 import sqlite3
 from tkinter import messagebox
-dbase = sqlite3.connect("bank_data5.db")
+import requests
+import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
+
+#FreeCurrencyAPI key
+API_KEY = "fca_live_bStX1hF5ZdIq2wEM0CQzUudy4CwdqK0bUdleidtE"
+def create_accno():
+    first_digit = random.randint(1, 9)
+    
+    remaining_digits = ''.join(str(random.randint(0, 9)) for _ in range(10))
+    
+    random_number = str(first_digit) + remaining_digits
+    return int(random_number)
+
+def fetch_historical_rates(start_date, end_date, target_currency, base_currency="GBP"):
+    rates_list = []
+    current_date = start_date
+
+    while current_date <= end_date:
+        # Format the date in YYYY-MM-DD
+        formatted_date = current_date.strftime("%Y-%m-%d")
+        
+        # API URL for the specific date (default base currency is EUR)
+        url = f"http://data.fixer.io/api/{formatted_date}?access_key={API_KEY}"
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+            
+            if data.get("success"):
+                rates = data["rates"]
+                
+                # Calculate GBP to target_currency rate: (target_currency / GBP)
+                if base_currency in rates and target_currency in rates:
+                    gbp_to_target = rates[target_currency] / rates[base_currency]
+                    rates_list.append(gbp_to_target)
+                else:
+                    print(f"Rate not found for {formatted_date}")
+            else:
+                print(f"Error on {formatted_date}: {data.get('error', 'Unknown error')}")
+        
+        except Exception as e:
+            print(f"Error fetching data for {formatted_date}: {e}")
+        
+        # Move to the next date
+        current_date += timedelta(days=1)
+
+    return rates_list
+
+dbase = sqlite3.connect("bank_data6.db")
 cursor = dbase.cursor()
 dbase.execute(''' CREATE TABLE IF NOT EXISTS customer(
                 accNo INT PRIMARY KEY NOT NULL,
@@ -19,6 +68,7 @@ def insert_data(NAME,PASSWORD,LOCATION,BALANCE):
     dbase.execute('''INSERT INTO customer(ACCNO,NAME,PASSWORD,LOCATION,BALANCE)
                     VALUES(?,?,?,?,?)''',(create_accno(),NAME,PASSWORD,LOCATION,BALANCE))
     dbase.commit()
+
 #----------------------------------------------------------------------
 def read_data(id,column="ACCNO"):
     # query = f"SELECT * FROM customer WHERE {column} = ?"
@@ -54,13 +104,6 @@ def transfer(id1,id2,amount):
     dbase.commit()
 
 #----------------------------------------------------------------------
-def create_accno():
-    first_digit = random.randint(1, 9)
-    
-    remaining_digits = ''.join(str(random.randint(0, 9)) for _ in range(10))
-    
-    random_number = str(first_digit) + remaining_digits
-    return int(random_number)
 
 #--------------------------------------------------------
 
@@ -138,14 +181,21 @@ def open_dashboard(data):
 
 def login():
     accno = int(accno_entry.get())
-    password= int(password_entry.get())
+    password = int(password_entry.get())
     record = read_data(accno)
+
+    if not record:
+        messagebox.showerror("Login Failed", "Account not found.")
+        return
+
+    print(record[dbaseMap["password"]])  # This will now only run if record is valid.
+
     if password == record[dbaseMap["password"]]:
         messagebox.showinfo("Login Successful", record)
         root.destroy()
         open_dashboard(record)
     else:
-        messagebox.showerror("Login Failed",record)
+        messagebox.showerror("Login Failed", "Incorrect password.")
 
 def show_balance(): messagebox.showinfo("Balance", "Your balance is $1,000.")
 def show_transfer(): messagebox.showinfo("Transfer", "Transfer feature coming soon.")
