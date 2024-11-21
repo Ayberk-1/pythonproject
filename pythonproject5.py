@@ -61,7 +61,7 @@ def fetch_historical_rates(start_date, end_date, target_currency, base_currency=
 
     return dates_list, rates_list
 
-dbase = sqlite3.connect("bank_data7.db")
+dbase = sqlite3.connect("C:\\Users\\beden\\Desktop\\pythonfinalassignment\\bank_data5.db")
 cursor = dbase.cursor()
 dbase.execute(''' CREATE TABLE IF NOT EXISTS customer(
                 accNo INT PRIMARY KEY NOT NULL,
@@ -77,7 +77,6 @@ def insert_data(NAME,PASSWORD,LOCATION,BALANCE):
     dbase.execute('''INSERT INTO customer(ACCNO,NAME,PASSWORD,LOCATION,BALANCE)
                     VALUES(?,?,?,?,?)''',(create_accno(),NAME,PASSWORD,LOCATION,BALANCE))
     dbase.commit()
-insert_data("ayberk",123,"turkey",5000)
 #----------------------------------------------------------------------
 def read_data(id,column="ACCNO"):
     # query = f"SELECT * FROM customer WHERE {column} = ?"
@@ -152,6 +151,38 @@ def open_currency_tab():
     global currency_entry
     currency_entry = tk.Entry(currency_window)
     currency_entry.pack(pady=10)
+    def show_currency_rates():
+        target_currency = currency_entry.get().upper()
+
+        # Manually set the start and end dates for historical data (example: last 5 days)
+        start_date = datetime.now() - timedelta(days=5)
+        end_date = datetime.now()
+
+        if not target_currency.isalpha() or len(target_currency) != 3:
+            messagebox.showerror("Invalid Currency", "Please enter a valid 3-letter currency code (e.g., USD, EUR).")
+            return
+
+        # Fetch historical exchange rates
+        dates, rates = fetch_historical_rates(start_date, end_date, target_currency)
+
+        if dates and rates:
+            # Create a plot of the data
+            plt.figure(figsize=(10, 6))
+            plt.plot(dates, rates, marker='o', color='blue', linestyle='-', linewidth=2, markersize=6)
+            plt.title(f"GBP to {target_currency} Exchange Rates (Historical)", fontsize=16, fontweight='bold')
+            plt.xlabel("Date", fontsize=12)
+            plt.ylabel(f"Exchange Rate (GBP to {target_currency})", fontsize=12)
+            plt.xticks(rotation=45, fontsize=10)
+            plt.yticks(fontsize=10)
+            plt.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
+            plt.tight_layout()
+
+            # Show the plot in a new window
+            plt.show()
+
+        else:
+            messagebox.showerror("No Data", f"No exchange rates found for {target_currency}.")
+
 
     # Add button to fetch rates
     fetch_button = tk.Button(currency_window, text="Fetch Rates", command=show_currency_rates)
@@ -232,13 +263,12 @@ def login():
     if not record:
         messagebox.showerror("Login Failed", "Account not found.")
         return
-
-    print(record[dbaseMap["password"]])  # This will now only run if record is valid.
-
+    
     if password == record[dbaseMap["password"]]:
         messagebox.showinfo("Login Successful", record)
         root.destroy()
         open_dashboard(record)
+        return 
     else:
         messagebox.showerror("Login Failed", "Incorrect password.")
 
