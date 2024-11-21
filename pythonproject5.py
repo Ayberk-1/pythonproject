@@ -18,41 +18,50 @@ def create_accno():
     return int(random_number)
 
 def fetch_historical_rates(start_date, end_date, target_currency, base_currency="GBP"):
+    # FreeCurrencyAPI historical endpoint
+    url = "https://api.freecurrencyapi.com/v1/historical"
     rates_list = []
+    dates_list = []
     current_date = start_date
 
     while current_date <= end_date:
         # Format the date in YYYY-MM-DD
         formatted_date = current_date.strftime("%Y-%m-%d")
         
-        # API URL for the specific date (default base currency is EUR)
-        url = f"http://data.fixer.io/api/{formatted_date}?access_key={API_KEY}"
+        # API request parameters
+        params = {
+            "apikey": API_KEY,
+            "base_currency": base_currency,
+            "currencies": target_currency,
+            "date": formatted_date
+        }
+
         try:
-            response = requests.get(url)
+            # Make the API request
+            response = requests.get(url, params=params)
             response.raise_for_status()
             data = response.json()
-            
-            if data.get("success"):
-                rates = data["rates"]
-                
-                # Calculate GBP to target_currency rate: (target_currency / GBP)
-                if base_currency in rates and target_currency in rates:
-                    gbp_to_target = rates[target_currency] / rates[base_currency]
-                    rates_list.append(gbp_to_target)
+
+            # Extract the rate for the target currency
+            if "data" in data and formatted_date in data["data"]:
+                rate = data["data"][formatted_date].get(target_currency)
+                if rate:
+                    rates_list.append(rate)
+                    dates_list.append(formatted_date)
                 else:
-                    print(f"Rate not found for {formatted_date}")
+                    print(f"No rate available for {formatted_date}")
             else:
-                print(f"Error on {formatted_date}: {data.get('error', 'Unknown error')}")
+                print(f"No data found for {formatted_date}: {data.get('message', 'Unknown error')}")
         
         except Exception as e:
             print(f"Error fetching data for {formatted_date}: {e}")
-        
+
         # Move to the next date
         current_date += timedelta(days=1)
 
-    return rates_list
+    return dates_list, rates_list
 
-dbase = sqlite3.connect("bank_data6.db")
+dbase = sqlite3.connect("bank_data7.db")
 cursor = dbase.cursor()
 dbase.execute(''' CREATE TABLE IF NOT EXISTS customer(
                 accNo INT PRIMARY KEY NOT NULL,
@@ -68,7 +77,7 @@ def insert_data(NAME,PASSWORD,LOCATION,BALANCE):
     dbase.execute('''INSERT INTO customer(ACCNO,NAME,PASSWORD,LOCATION,BALANCE)
                     VALUES(?,?,?,?,?)''',(create_accno(),NAME,PASSWORD,LOCATION,BALANCE))
     dbase.commit()
-
+insert_data("ayberk",123,"turkey",5000)
 #----------------------------------------------------------------------
 def read_data(id,column="ACCNO"):
     # query = f"SELECT * FROM customer WHERE {column} = ?"
@@ -112,8 +121,44 @@ def transfer(id1,id2,amount):
 # update_data("location","hello",12312)
 # read_data()
 # dbase.commit()
+def show_currency_rates():
+    # Get user input currency and convert to uppercase
+    target_currency = currency_entry.get().upper()
 
+    # Manually set the start and end dates
+    start_date = datetime(2023, 1, 1)  # Start Date (example)
+    end_date = datetime(2023, 1, 4)   # End Date (example)
 
+    if not target_currency.isalpha() or len(target_currency) != 3:
+        messagebox.showerror("Invalid Currency", "Please enter a valid 3-letter currency code (e.g., USD, EUR).")
+        return
+
+    # Fetch historical exchange rates
+    rates = fetch_historical_rates(start_date, end_date, target_currency)
+
+    if rates:
+        messagebox.showinfo("Currency Data", f"Exchange Rates for {target_currency}: {rates}")
+    else:
+        messagebox.showerror("No Data", f"No exchange rates found for {target_currency}.")
+
+def open_currency_tab():
+    # Create a new window for the currency feature
+    currency_window = tk.Toplevel()
+    currency_window.title("Currency Converter")
+    currency_window.geometry("300x200")
+
+    # Add label and input field for currency code
+    tk.Label(currency_window, text="Enter Currency Code (e.g., USD):").pack(pady=10)
+    global currency_entry
+    currency_entry = tk.Entry(currency_window)
+    currency_entry.pack(pady=10)
+
+    # Add button to fetch rates
+    fetch_button = tk.Button(currency_window, text="Fetch Rates", command=show_currency_rates)
+    fetch_button.pack(pady=20)
+
+    # Start the currency window loop
+    currency_window.mainloop()
 
 def open_transfer_tab(data):
     # New window for transfer
@@ -174,7 +219,7 @@ def open_dashboard(data):
 
     tk.Button(dashboard, text="Balance", command=lambda: show_balance(data)).pack(pady=5)
     tk.Button(dashboard, text="Transfer", command=lambda: open_transfer_tab(data)).pack(pady=5)
-    tk.Button(dashboard, text="Currency", command=show_currency).pack(pady=5)
+    tk.Button(dashboard, text="Currency", command=open_currency_tab).pack(pady=5)
     tk.Button(dashboard, text="Help", command=show_help).pack(pdy=5)
 
     dashboard.mainloop()
