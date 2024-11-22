@@ -5,10 +5,70 @@ import sqlite3
 from tkinter import messagebox
 import requests
 import matplotlib.pyplot as plt
+import os
 from datetime import datetime, timedelta
 
 #FreeCurrencyAPI key
 API_KEY = "fca_live_bStX1hF5ZdIq2wEM0CQzUudy4CwdqK0bUdleidtE"
+
+def open_register_tab():
+    # New window for registration
+    register_window = tk.Toplevel()
+    register_window.title("Register New Account")
+    register_window.geometry("300x300")
+
+    # Input fields for registration
+    tk.Label(register_window, text="Name:").pack(pady=5)
+    name_entry = tk.Entry(register_window)
+    name_entry.pack(pady=5)
+
+    tk.Label(register_window, text="Password (6 digits):").pack(pady=5)
+    password_entry = tk.Entry(register_window, show="*")
+    password_entry.pack(pady=5)
+
+    tk.Label(register_window, text="Country:").pack(pady=5)
+    country_entry = tk.Entry(register_window)
+    country_entry.pack(pady=5)
+
+    tk.Label(register_window, text="Initial Balance:").pack(pady=5)
+    balance_entry = tk.Entry(register_window)
+    balance_entry.pack(pady=5)
+
+    def register_account():
+        # Retrieve user inputs
+        name = name_entry.get()
+        password = password_entry.get()
+        country = country_entry.get()
+        balance = balance_entry.get()
+
+        # Input validation
+        if not name or not password or not country or not balance:
+            messagebox.showerror("Registration Failed", "All fields are required.")
+            return
+
+        if not password.isdigit() or len(password) != 6:
+            messagebox.showerror("Registration Failed", "Password must be a 6-digit number.")
+            return
+
+        if not balance.isdigit():
+            messagebox.showerror("Registration Failed", "Balance must be a valid number.")
+            return
+
+        # Convert balance to an integer
+        balance = int(balance)
+
+        # Insert the new account into the database
+        try:
+            insert_data(name, int(password), country, balance)
+            messagebox.showinfo("Registration Successful", "Account created successfully!")
+            register_window.destroy()
+        except Exception as e:
+            messagebox.showerror("Registration Failed", f"Error: {e}")
+
+    # Register button
+    tk.Button(register_window, text="Register", command=register_account).pack(pady=10)
+    register_window.mainloop()
+
 def create_accno():
     first_digit = random.randint(1, 9)
     
@@ -61,7 +121,9 @@ def fetch_historical_rates(start_date, end_date, target_currency, base_currency=
 
     return dates_list, rates_list
 
-dbase = sqlite3.connect("C:\\Users\\beden\\Desktop\\pythonfinalassignment\\bank_data5.db")
+
+dpath = os.path.join(os.path.dirname(__file__), "bank_data5.db")
+dbase = sqlite3.connect(dpath)
 cursor = dbase.cursor()
 dbase.execute(''' CREATE TABLE IF NOT EXISTS customer(
                 accNo INT PRIMARY KEY NOT NULL,
@@ -169,7 +231,7 @@ def open_currency_tab():
             # Create a plot of the data
             plt.figure(figsize=(10, 6))
             plt.plot(dates, rates, marker='o', color='blue', linestyle='-', linewidth=2, markersize=6)
-            plt.title(f"GBP to {target_currency} Exchange Rates (Historical)", fontsize=16, fontweight='bold')
+            plt.title(f"GBP to {target_currency} (last 5 days)", fontsize=16, fontweight='bold')
             plt.xlabel("Date", fontsize=12)
             plt.ylabel(f"Exchange Rate (GBP to {target_currency})", fontsize=12)
             plt.xticks(rotation=45, fontsize=10)
@@ -193,6 +255,7 @@ def open_currency_tab():
 
 def open_transfer_tab(data):
     # New window for transfer
+    
     transfer_window = tk.Toplevel()
     transfer_window.title("Transfer")
     transfer_window.geometry("300x200")
@@ -251,8 +314,7 @@ def open_dashboard(data):
     tk.Button(dashboard, text="Balance", command=lambda: show_balance(data)).pack(pady=5)
     tk.Button(dashboard, text="Transfer", command=lambda: open_transfer_tab(data)).pack(pady=5)
     tk.Button(dashboard, text="Currency", command=open_currency_tab).pack(pady=5)
-    tk.Button(dashboard, text="Help", command=show_help).pack(pdy=5)
-
+    tk.Button(dashboard, text="Help", command=show_help).pack(pady=5)
     dashboard.mainloop()
 
 def login():
@@ -265,14 +327,14 @@ def login():
         return
     
     if password == record[dbaseMap["password"]]:
-        messagebox.showinfo("Login Successful", record)
+        messagebox.showinfo("Login Successful","hello "+ record[dbaseMap["name"]])
         root.destroy()
         open_dashboard(record)
         return 
     else:
         messagebox.showerror("Login Failed", "Incorrect password.")
 
-def show_balance(): messagebox.showinfo("Balance", "Your balance is $1,000.")
+def show_balance(data): messagebox.showinfo("Balance", f"Your balance is {data[dbaseMap["balance"]]}.")
 def show_transfer(): messagebox.showinfo("Transfer", "Transfer feature coming soon.")
 def show_currency(): messagebox.showinfo("Currency", "Currency feature coming soon.")
 def show_help(): messagebox.showinfo("Help", "For help, contact support@example.com.")
@@ -291,5 +353,9 @@ password_entry = tk.Entry(root, show="*")
 password_entry.pack(pady=5)
 
 tk.Button(root, text="Login", command=login).pack(pady=10)
+
+register_button = tk.Button(root, text="Register", command=open_register_tab)
+register_button.place(x=220, y=160)  # Adjust position as needed
+
 root.mainloop()
 dbase.close()
