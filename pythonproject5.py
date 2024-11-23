@@ -11,6 +11,53 @@ from datetime import datetime, timedelta
 #FreeCurrencyAPI key
 API_KEY = "fca_live_bStX1hF5ZdIq2wEM0CQzUudy4CwdqK0bUdleidtE"
 
+def bubble_sort(customers):
+    n = len(customers)
+    for i in range(n):
+        for j in range(0, n-i-1):
+            # Compare balances (index 4 is the balance)
+            if customers[j][dbaseMap["balance"]] < customers[j+1][dbaseMap["balance"]]:
+                # Swap if the current balance is greater than the next
+                customers[j], customers[j+1] = customers[j+1], customers[j]
+    return customers
+def display_sorted_data():
+    # Create a new window for displaying sorted data
+    sorted_data_window = tk.Toplevel()
+    sorted_data_window.title("Richest custoemrs")
+    sorted_data_window.geometry("400x400")
+
+    # Fetch all customer data
+    cursor = dbase.execute("SELECT * FROM customer")
+    customers = cursor.fetchall()
+
+    # Sort the customers by balance using Bubble Sort
+    sorted_customers = bubble_sort(customers)
+
+    # Add a title label
+    tk.Label(sorted_data_window, text="Sorted Customers by Balance", font=("Arial", 14, "bold")).pack(pady=10)
+
+    # Create a frame for the data
+    data_frame = tk.Frame(sorted_data_window)
+    data_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+    # Add column headers
+    headers = ["Name", "Location", "Balance"]
+    for i, header in enumerate(headers):
+        tk.Label(data_frame, text=header, font=("Arial", 10, "bold"), relief=tk.GROOVE, width=15).grid(row=0, column=i)
+
+    # Populate the rows with only Name, Location, and Balance
+    for row_index, customer in enumerate(sorted_customers, start=1):
+        # Extract Name (index 1), Location (index 3), and Balance (index 4) for display
+        values = [customer[1], customer[3], customer[4]]
+        for col_index, value in enumerate(values):
+            tk.Label(data_frame, text=value, font=("Arial", 10), relief=tk.RIDGE, width=15).grid(row=row_index, column=col_index)
+
+
+    # Add a close button
+    tk.Button(sorted_data_window, text="Close", command=sorted_data_window.destroy).pack(pady=10)
+
+
+
 def open_register_tab():
     # New window for registration
     register_window = tk.Toplevel()
@@ -56,11 +103,12 @@ def open_register_tab():
 
         # Convert balance to an integer
         balance = int(balance)
-
+        accno = create_accno()
         # Insert the new account into the database
         try:
-            insert_data(name, int(password), country, balance)
-            messagebox.showinfo("Registration Successful", "Account created successfully!")
+            insert_data(accno,name, int(password), country, balance)
+            text = "Account created successfully!\nYour account number:"+str(accno)
+            messagebox.showinfo(f"Registration Successful", text)
             register_window.destroy()
         except Exception as e:
             messagebox.showerror("Registration Failed", f"Error: {e}")
@@ -70,12 +118,17 @@ def open_register_tab():
     register_window.mainloop()
 
 def create_accno():
-    first_digit = random.randint(1, 9)
-    
-    remaining_digits = ''.join(str(random.randint(0, 9)) for _ in range(10))
-    
-    random_number = str(first_digit) + remaining_digits
-    return int(random_number)
+    while True:  # Keep generating until a unique account number is found
+        # Generate a random 6-digit account number
+        first_digit = random.randint(1, 9)
+        remaining_digits = ''.join(str(random.randint(0, 9)) for _ in range(5))
+        random_number = int(str(first_digit) + remaining_digits)
+
+        # Check if this account number already exists in the database
+        cursor = dbase.execute("SELECT 1 FROM customer WHERE ACCNO = ?", (random_number,))
+        if not cursor.fetchone():  # If no result is returned, the number is unique
+            return random_number
+
 
 def fetch_historical_rates(start_date, end_date, target_currency, base_currency="GBP"):
     # FreeCurrencyAPI historical endpoint
@@ -135,9 +188,9 @@ dbase.execute(''' CREATE TABLE IF NOT EXISTS customer(
 dbaseMap = {"accno":0,"name":1,"password":2,"location":3,"balance":4}
 
 #--------------------------------------------------
-def insert_data(NAME,PASSWORD,LOCATION,BALANCE):
+def insert_data(ACCNO,NAME,PASSWORD,LOCATION,BALANCE):
     dbase.execute('''INSERT INTO customer(ACCNO,NAME,PASSWORD,LOCATION,BALANCE)
-                    VALUES(?,?,?,?,?)''',(create_accno(),NAME,PASSWORD,LOCATION,BALANCE))
+                    VALUES(?,?,?,?,?)''',(ACCNO,NAME,PASSWORD,LOCATION,BALANCE))
     dbase.commit()
 #----------------------------------------------------------------------
 def read_data(id,column="ACCNO"):
@@ -253,6 +306,21 @@ def open_currency_tab():
     # Start the currency window loop
     currency_window.mainloop()
 
+def remove_account(data, dashboard):
+    # Confirm account deletion
+    response = messagebox.askyesno("Confirm Deletion", "Are you sure you want to remove your account? This action cannot be undone.")
+    if response:  # If the user confirms
+        try:
+            delete_data(data[dbaseMap["accno"]])  # Delete the account
+            messagebox.showinfo("Account Removed", "Your account has been successfully removed.")
+            # Close the dashboard and return to the login screen
+            dashboard.destroy()
+            root.deiconify()  # Show the login window again
+            return
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to remove account: {e}")
+
+
 def open_transfer_tab(data):
     # New window for transfer
     
@@ -305,16 +373,20 @@ def open_transfer_tab(data):
 def open_dashboard(data):
     dashboard = tk.Tk()
     dashboard.title("Dashboard")
-    dashboard.geometry("300x200")
+    dashboard.geometry("400x300")
 
     # Customer details
     tk.Label(dashboard, text="Customer", font=("Arial", 8, "bold")).place(x=8, y=8)
-    tk.Label(dashboard, text=f"AccNo: {data[dbaseMap["name"]]}", font=("Arial", 9)).place(x=10, y=35)
+    tk.Label(dashboard, text=f"Account number:\n {data[dbaseMap["accno"]]}", font=("Arial", 9)).place(x=10, y=35)
 
     tk.Button(dashboard, text="Balance", command=lambda: show_balance(data)).pack(pady=5)
     tk.Button(dashboard, text="Transfer", command=lambda: open_transfer_tab(data)).pack(pady=5)
     tk.Button(dashboard, text="Currency", command=open_currency_tab).pack(pady=5)
     tk.Button(dashboard, text="Help", command=show_help).pack(pady=5)
+    tk.Button(dashboard, text="Richest customers", command=display_sorted_data).pack(pady=5)
+
+    remove_button = tk.Button(dashboard, text="Remove Account", fg="red", command=lambda: remove_account(data, dashboard))
+    remove_button.pack(side=tk.LEFT, padx=10, pady=20)
     dashboard.mainloop()
 
 def login():
