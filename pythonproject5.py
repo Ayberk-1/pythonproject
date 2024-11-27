@@ -57,120 +57,145 @@ def display_sorted_data():
 
 
 def open_register_tab():
-    # New window for registration
+    # Create a new window for the registration process
     register_window = tk.Toplevel()
-    register_window.title("Register New Account")
-    register_window.geometry("300x300")
+    register_window.title("Register New Account")  # Title of the registration window
+    register_window.geometry("300x300")  # Set the size of the window
 
-    # Input fields for registration
+    # Input field for Name
     tk.Label(register_window, text="Name:").pack(pady=5)
     name_entry = tk.Entry(register_window)
     name_entry.pack(pady=5)
 
+    # Input field for Password
     tk.Label(register_window, text="Password (6 digits):").pack(pady=5)
-    password_entry = tk.Entry(register_window, show="*")
+    password_entry = tk.Entry(register_window, show="*")  # Password hidden with '*'
     password_entry.pack(pady=5)
 
+    # Input field for Country
     tk.Label(register_window, text="Country:").pack(pady=5)
     country_entry = tk.Entry(register_window)
     country_entry.pack(pady=5)
 
+    # Input field for Initial Balance
     tk.Label(register_window, text="Initial Balance:").pack(pady=5)
     balance_entry = tk.Entry(register_window)
     balance_entry.pack(pady=5)
 
     def register_account():
-        # Retrieve user inputs
-        name = name_entry.get().upper()
+        # Retrieve the values entered by the user
+        name = name_entry.get().upper()  # Convert name to uppercase for consistency
         password = password_entry.get()
-        country = country_entry.get().upper()
+        country = country_entry.get().upper()  # Convert country to uppercase for consistency
         balance = balance_entry.get()
 
-        # Input validation
+        # Validate that all fields are filled
         if not name or not password or not country or not balance:
-            messagebox.showerror("Registration Failed", "All fields are required.")
+            messagebox.showerror("Registration Failed", "All fields are required.")  # Show error for empty fields
             return
 
+        # Validate password - must be a 6-digit number
         if not password.isdigit() or len(password) != 6:
-            messagebox.showerror("Registration Failed", "Password must be a 6-digit number.")
+            messagebox.showerror("Registration Failed", "Password must be a 6-digit number.")  # Error for invalid password
             return
 
+        # Validate balance - must be a valid number
         if not balance.isdigit():
-            messagebox.showerror("Registration Failed", "Balance must be a valid number.")
+            messagebox.showerror("Registration Failed", "Balance must be a valid number.")  # Error for invalid balance
             return
 
-        # Convert balance to an integer
+        # Convert balance to integer for database storage
         balance = int(balance)
+
+        # Generate a new account number
         accno = create_accno()
-        # Insert the new account into the database
+
+        # Try to insert the new account into the database
         try:
-            insert_data(accno,name, int(password), country, balance)
-            text = "Account created successfully!\nYour account number:"+str(accno)
+            insert_data(accno, name, int(password), country, balance)
+            # Show success message with the new account number
+            text = "Account created successfully!\nYour account number: " + str(accno)
             messagebox.showinfo(f"Registration Successful", text)
-            register_window.destroy()
+            register_window.destroy()  # Close the registration window
         except Exception as e:
+            # Show an error message if account creation fails
             messagebox.showerror("Registration Failed", f"Error: {e}")
 
-    # Register button
+    # Button to submit the registration form
     tk.Button(register_window, text="Register", command=register_account).pack(pady=10)
+
+    # Start the Tkinter event loop for the registration window
     register_window.mainloop()
 
-def create_accno():
-    while True:  # Keep generating until a unique account number is found
-        # Generate a random 6-digit account number
-        first_digit = random.randint(1, 9)
-        remaining_digits = ''.join(str(random.randint(0, 9)) for _ in range(5))
-        random_number = int(str(first_digit) + remaining_digits)
 
-        # Check if this account number already exists in the database
+def create_accno():
+    while True:  # Keep trying until a unique account number is generated
+        # Generate a random 6-digit account number
+        first_digit = random.randint(1, 9)  # Ensure the first digit is not 0
+        remaining_digits = ''.join(str(random.randint(0, 9)) for _ in range(5))  # Generate the remaining 5 digits
+        random_number = int(str(first_digit) + remaining_digits)  # Combine to form a 6-digit number
+
+        # Check if the generated number already exists in the customer database
         cursor = dbase.execute("SELECT 1 FROM customer WHERE ACCNO = ?", (random_number,))
-        if not cursor.fetchone():  # If no result is returned, the number is unique
-            return random_number
+        if not cursor.fetchone():  # If no match is found, the number is unique
+            return random_number  # Return the unique account number
 
 
 def fetch_historical_rates(start_date, end_date, target_currency, base_currency="GBP"):
-    # FreeCurrencyAPI historical endpoint
+    # Define the FreeCurrencyAPI endpoint for historical exchange rates
     url = "https://api.freecurrencyapi.com/v1/historical"
-    rates_list = []
-    dates_list = []
-    current_date = start_date
+    rates_list = []  # List to store the exchange rates
+    dates_list = []  # List to store the corresponding dates
+    current_date = start_date  # Start date for fetching rates
 
+    # Loop through each day between start_date and end_date
     while current_date <= end_date:
-        # Format the date in YYYY-MM-DD
+        # Format the date as YYYY-MM-DD for the API request
         formatted_date = current_date.strftime("%Y-%m-%d")
         
-        # API request parameters
+        # Define the parameters for the API request
         params = {
-            "apikey": API_KEY,
-            "base_currency": base_currency,
-            "currencies": target_currency,
-            "date": formatted_date
+            "apikey": API_KEY,  # API key for authentication
+            "base_currency": base_currency,  # Base currency (default: GBP)
+            "currencies": target_currency,  # Target currency to fetch rates for
+            "date": formatted_date  # The specific date for historical data
         }
 
         try:
             # Make the API request
             response = requests.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            data = response.json()  # Parse the JSON response
 
-            # Extract the rate for the target currency
+            # Check if the response contains rate data for the target date
             if "data" in data and formatted_date in data["data"]:
+                # Extract the exchange rate for the target currency
                 rate = data["data"][formatted_date].get(target_currency)
                 if rate:
-                    rates_list.append(rate)
-                    dates_list.append(formatted_date)
+                    rates_list.append(rate)  # Add the rate to the list
+                    dates_list.append(formatted_date)  # Add the corresponding date
                 else:
+                    # Handle case where the rate is missing for the date
                     print(f"No rate available for {formatted_date}")
             else:
+                # Handle case where no data is returned for the date
                 print(f"No data found for {formatted_date}: {data.get('message', 'Unknown error')}")
         
         except Exception as e:
+            # Handle exceptions during the API request
             print(f"Error fetching data for {formatted_date}: {e}")
 
-        # Move to the next date
+        # Move to the next day
         current_date += timedelta(days=1)
 
+    # Return the list of dates and their corresponding exchange rates
     return dates_list, rates_list
+
+
+
+
+
+
 
 
 dpath = os.path.join(os.path.dirname(__file__), "bank_data5.db")
