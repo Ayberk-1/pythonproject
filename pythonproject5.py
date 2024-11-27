@@ -198,85 +198,91 @@ def fetch_historical_rates(start_date, end_date, target_currency, base_currency=
 
 
 
-dpath = os.path.join(os.path.dirname(__file__), "bank_data5.db")
+# Define the path to the SQLite database file
+dpath = os.path.join(os.path.dirname(__file__), "bank_data5.db")  # Combine the directory of the script with the database filename
+
+# Connect to the SQLite database (creates the file if it doesn't exist)
 dbase = sqlite3.connect(dpath)
+
+# Create a cursor object to execute SQL commands
 cursor = dbase.cursor()
+
+# Create the 'customer' table if it doesn't already exist
 dbase.execute(''' CREATE TABLE IF NOT EXISTS customer(
-                accNo INT PRIMARY KEY NOT NULL,
-                name TEXT NOT NULL,
-                password INT NOT NULL,
-                location TEXT NOT NULL,
-                balance INT NOT NULL)''')
+                accNo INT PRIMARY KEY NOT NULL,  # Account number, must be unique and not null
+                name TEXT NOT NULL,              # Customer name, cannot be null
+                password INT NOT NULL,           # Password, stored as an integer, cannot be null
+                location TEXT NOT NULL,          # Location of the customer, cannot be null
+                balance INT NOT NULL)            # Balance in the account, cannot be null
+''')
 
-dbaseMap = {"accno":0,"name":1,"password":2,"location":3,"balance":4}
+# Map for easy access to column indices in database queries
+dbaseMap = {"accno": 0, "name": 1, "password": 2, "location": 3, "balance": 4}  # Column names mapped to their positions
 
-#--------------------------------------------------
 
-def insert_data(ACCNO,NAME,PASSWORD,LOCATION,BALANCE):
-    dbase.execute('''INSERT INTO customer(ACCNO,NAME,PASSWORD,LOCATION,BALANCE)
-                    VALUES(?,?,?,?,?)''',(ACCNO,NAME,PASSWORD,LOCATION,BALANCE))
-    dbase.commit()
+def insert_data(ACCNO, NAME, PASSWORD, LOCATION, BALANCE):
+    # Insert a new customer record into the 'customer' table
+    # Use placeholders (?) to safely insert data and prevent SQL injection
+    dbase.execute('''INSERT INTO customer(ACCNO, NAME, PASSWORD, LOCATION, BALANCE)
+                    VALUES(?,?,?,?,?)''', (ACCNO, NAME, PASSWORD, LOCATION, BALANCE))
+    dbase.commit()  # Commit the transaction to save changes to the database
 
-#----------------------------------------------------------------------
+def read_data(id, column="ACCNO"):
+    # Retrieve a customer record from the 'customer' table based on a specified column and value
+    # By default, it searches by 'ACCNO' unless another column is specified
+    query = f"SELECT * FROM customer WHERE {column} = ?"  # Prepare SQL query dynamically
+    cursor = dbase.execute(query, (id,))  # Execute query with provided ID
+    result = cursor.fetchone()  # Fetch one matching record
+    return result if result else False  # Return the record if found; otherwise, return False
 
-def read_data(id,column="ACCNO"):
-    # query = f"SELECT * FROM customer WHERE {column} = ?"
-    # data = dbase.execute(query,(id,))
-    # return data
-    query = f"SELECT * FROM customer WHERE {column} = ?"
-    cursor = dbase.execute(query, (id,))
-    result = cursor.fetchone()  # Fetch the first row of the result
-    return result if result else False
 
-#----------------------------------------------------------------------
 
-def update_data(column,value,id):
+
+def update_data(column, value, id):
+    # Update a column for a specific account
     query = f"UPDATE customer SET {column} = ? WHERE ACCNO = ?"
     dbase.execute(query, (value, id))
-    dbase.commit()
-
-#----------------------------------------------------------------------
+    dbase.commit()  # Save changes
 
 def delete_data(id):
+    # Delete a customer by account number
     dbase.execute("DELETE FROM customer WHERE ACCNO=?", (id,))
+    dbase.commit()  # Save changes
 
 
-    dbase.commit()
-
-#----------------------------------------------------------------------
-
-def transfer(id1,id2,amount):
+def transfer(id1, id2, amount):
+    # Fetch balance of both accounts
     query = "SELECT ACCNO, BALANCE FROM customer WHERE ACCNO = ?"
     data = dbase.execute(query, (id1,))
     record = data.fetchone()
-    balance1 = record[1]
-    query = "SELECT ACCNO, BALANCE FROM customer WHERE ACCNO = ?"
+    balance1 = record[1]  # Balance of first account
     data = dbase.execute(query, (id2,))
     record = data.fetchone()
-    balance2 = record[1]
-    balance1,balance2 = balance1-amount,balance2+amount
-    update_data("BALANCE",balance1,id1)
-    update_data("BALANCE",balance2,id2)
-    dbase.commit()
-        
+    balance2 = record[1]  # Balance of second account
 
-#----------------------------------------------------------------------
+    # Update balances after transfer
+    balance1, balance2 = balance1 - amount, balance2 + amount
+    update_data("BALANCE", balance1, id1)  # Update balance for id1
+    update_data("BALANCE", balance2, id2)  # Update balance for id2
+    dbase.commit()  # Save changes
 
 def show_currency_rates():
-    # Get user input currency and convert to uppercase
+    # Get user input for target currency and validate
     target_currency = currency_entry.get().upper()
+    
+    # Set a fixed date range for historical data
+    start_date = datetime(2023, 1, 1)  # Start date (example)
+    end_date = datetime(2023, 1, 4)   # End date (example)
 
-    # Manually set the start and end dates
-    start_date = datetime(2023, 1, 1)  # Start Date (example)
-    end_date = datetime(2023, 1, 4)   # End Date (example)
-
+    # Check if the currency code is valid
     if not target_currency.isalpha() or len(target_currency) != 3:
         messagebox.showerror("Invalid Currency", "Please enter a valid 3-letter currency code (e.g., USD, EUR).")
         return
 
-    # Fetch historical exchange rates
+    # Fetch and display historical exchange rates for the target currency
     rates = fetch_historical_rates(start_date, end_date, target_currency)
 
+    # Display the result or error message
     if rates:
         messagebox.showinfo("Currency Data", f"Exchange Rates for {target_currency}: {rates}")
     else:
