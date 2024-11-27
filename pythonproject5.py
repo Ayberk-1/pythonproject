@@ -486,47 +486,66 @@ def open_dashboard(data):
 
 
 
+# Handles user login
 def login():
-    accno = int(accno_entry.get())
-    password = int(password_entry.get())
-    record = read_data(accno)
+    accno = int(accno_entry.get())  # Get account number
+    password = int(password_entry.get())  # Get password
+    record = read_data(accno)  # Fetch account data
 
-    if not record:
+    if not record:  # Account not found
         messagebox.showerror("Login Failed", "Account not found.")
         return
     
-    if password == record[dbaseMap["password"]]:
-        messagebox.showinfo("Login Successful","Welcome "+ record[dbaseMap["name"]])
-        root.destroy()
-        open_dashboard(record)
-        return 
-    else:
+    if password == record[dbaseMap["password"]]:  # Correct password
+        messagebox.showinfo("Login Successful", "Welcome " + record[dbaseMap["name"]])
+        root.destroy()  # Close login window
+        open_dashboard(record)  # Open dashboard
+    else:  # Incorrect password
         messagebox.showerror("Login Failed", "Incorrect password.")
 
+# Show account balance
+def show_balance(data):
+    messagebox.showinfo("Balance", f"Your balance is {data[dbaseMap['balance']]}.")  # Display balance
 
-def show_balance(data): messagebox.showinfo("Balance", f"Your balance is {data[dbaseMap["balance"]]}.")
-def show_transfer(): messagebox.showinfo("Transfer", "Transfer feature coming soon.")
-def show_currency(): messagebox.showinfo("Currency", "Currency feature coming soon.")
-def show_help(): messagebox.showinfo("Help", "For help, contact support@example.com.")
+# Placeholder for transfer feature
+def show_transfer():
+    messagebox.showinfo("Transfer", "Transfer feature coming soon.")
+
+# Placeholder for currency feature
+def show_currency():
+    messagebox.showinfo("Currency", "Currency feature coming soon.")
+
+# Show help contact info
+def show_help():
+    messagebox.showinfo("Help", "For help, contact support@example.com.")
 
 
-# Login window
+
+# Initialize the main window for login
 root = tk.Tk()
-root.title("Login Screen")
-root.geometry("300x200")
+root.title("Login Screen")  # Set window title
+root.geometry("300x200")  # Set window size
 
+# Account number input field
 tk.Label(root, text="Account Number:").pack(pady=5)
-accno_entry = tk.Entry(root)
+accno_entry = tk.Entry(root)  # Create entry field for account number
 accno_entry.pack(pady=5)
 
+# Password input field
 tk.Label(root, text="Password:").pack(pady=5)
-password_entry = tk.Entry(root, show="*")
+password_entry = tk.Entry(root, show="*")  # Create entry field for password (masked)
 password_entry.pack(pady=5)
 
+# Login button
 tk.Button(root, text="Login", command=login).pack(pady=10)
 
+# Register button (opens registration tab)
 register_button = tk.Button(root, text="Register", command=open_register_tab)
-register_button.place(x=220, y=160)  # Adjust position as needed
+register_button.place(x=220, y=160)  # Place register button at specific location
 
+# Start the GUI event loop
 root.mainloop()
+
+# Close the database connection when done
 dbase.close()
+
