@@ -266,6 +266,7 @@ def transfer(id1, id2, amount):
     update_data("BALANCE", balance2, id2)  # Update balance for id2
     dbase.commit()  # Save changes
 
+
 def show_currency_rates():
     # Get user input for target currency and validate
     target_currency = currency_entry.get().upper()
@@ -289,6 +290,59 @@ def show_currency_rates():
         messagebox.showerror("No Data", f"No exchange rates found for {target_currency}.")
 
 def open_currency_tab():
+    # Create a new window for the currency converter feature
+    currency_window = tk.Toplevel()
+    currency_window.title("Currency Converter")
+    currency_window.geometry("300x200")
+
+    # Add label and input field for currency code (e.g., USD, EUR)
+    tk.Label(currency_window, text="Enter Currency Code (e.g., USD):").pack(pady=10)
+    global currency_entry
+    currency_entry = tk.Entry(currency_window)
+    currency_entry.pack(pady=10)
+
+    def show_currency_rates():
+        # Retrieve and validate the target currency code
+        target_currency = currency_entry.get().upper()
+
+        # Set the date range for fetching historical data (last 5 days)
+        start_date = datetime.now() - timedelta(days=5)
+        end_date = datetime.now()
+
+        # Validate the input currency code
+        if not target_currency.isalpha() or len(target_currency) != 3:
+            messagebox.showerror("Invalid Currency", "Please enter a valid 3-letter currency code (e.g., USD, EUR).")
+            return
+
+        # Fetch the historical exchange rates for the target currency
+        dates, rates = fetch_historical_rates(start_date, end_date, target_currency)
+
+        # If data is fetched successfully, plot the historical exchange rates
+        if dates and rates:
+            plt.figure(figsize=(10, 6))
+            plt.plot(dates, rates, marker='o', color='blue', linestyle='-', linewidth=2, markersize=6)
+            plt.title(f"GBP to {target_currency} (last 5 days)", fontsize=16, fontweight='bold')
+            plt.xlabel("Date", fontsize=12)
+            plt.ylabel(f"Exchange Rate (GBP to {target_currency})", fontsize=12)
+            plt.xticks(rotation=45, fontsize=10)
+            plt.yticks(fontsize=10)
+            plt.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
+            plt.tight_layout()
+
+            # Display the plot in a new window
+            plt.show()
+
+        # If no data is found, show an error message
+        else:
+            messagebox.showerror("No Data", f"No exchange rates found for {target_currency}.")
+
+    # Add button to fetch and show the currency rates
+    fetch_button = tk.Button(currency_window, text="Fetch Rates", command=show_currency_rates)
+    fetch_button.pack(pady=20)
+
+    # Start the event loop for the currency window
+    currency_window.mainloop()
+
     # Create a new window for the currency feature
     currency_window = tk.Toplevel()
     currency_window.title("Currency Converter")
@@ -340,28 +394,27 @@ def open_currency_tab():
     currency_window.mainloop()
 
 def remove_account(data, dashboard):
-    # Confirm account deletion
+    # Confirm account deletion with a yes/no prompt
     response = messagebox.askyesno("Confirm Deletion", "Are you sure you want to remove your account? This action cannot be undone.")
-    if response:  # If the user confirms
+    if response:  # If the user confirms deletion
         try:
-            delete_data(data[dbaseMap["accno"]])  # Delete the account
+            delete_data(data[dbaseMap["accno"]])  # Delete the account from the database
             messagebox.showinfo("Account Removed", "Your account has been successfully removed.")
-            # Close the dashboard and return to the login screen
+            # Close the dashboard window and show the login screen again
             dashboard.destroy()
             root.deiconify()  # Show the login window again
             return
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to remove account: {e}")
+            messagebox.showerror("Error", f"Failed to remove account: {e}")  # Show error if deletion fails
 
 
 def open_transfer_tab(data):
-    # New window for transfer
-    
+    # Create a new window for initiating a transfer
     transfer_window = tk.Toplevel()
     transfer_window.title("Transfer")
     transfer_window.geometry("300x200")
 
-    # Add input fields
+    # Add input fields for receiver account number and transfer amount
     tk.Label(transfer_window, text="Receiver Account Number:").pack(pady=5)
     receiver_entry = tk.Entry(transfer_window)
     receiver_entry.pack(pady=5)
@@ -371,15 +424,17 @@ def open_transfer_tab(data):
     amount_entry.pack(pady=5)
 
     def execute_transfer():
+        # Retrieve input values
         receiver_accno = receiver_entry.get()
         amount = amount_entry.get()
 
+        # Validate inputs (check if fields are empty or if values are not digits)
         if not receiver_accno or not amount:
             messagebox.showerror("Transfer Failed", "Please fill in all fields.")
             return
 
         if not receiver_accno.isdigit():
-            messagebox.showerror("Transfer Failed", "Amount must be a valid number.")
+            messagebox.showerror("Transfer Failed", "Receiver account number must be a valid number.")
             return 
         
         if not amount.isdigit():
@@ -388,39 +443,47 @@ def open_transfer_tab(data):
 
         receiver_accno = int(receiver_accno)
         amount = int(amount)
-        # Ensure the receiver account exists
+        # Ensure the receiver account exists in the database
         receiver_data = read_data(receiver_accno)
         if not receiver_data:
             messagebox.showerror("Transfer Failed", "Receiver account does not exist.")
             return
 
-        # Perform the transfer
+        # Perform the money transfer operation
         transfer(data[dbaseMap["accno"]], receiver_accno, amount)
-        transfer_window.destroy()
+        transfer_window.destroy()  # Close the transfer window after transfer is done
 
-    # Transfer button
+    # Create and add the "Transfer" button to execute the transfer
     tk.Button(transfer_window, text="Transfer", command=execute_transfer).pack(pady=10)
+    # Start the transfer window's event loop
     transfer_window.mainloop()
 
 
 def open_dashboard(data):
-    dashboard = tk.Tk()
-    dashboard.title("Dashboard")
-    dashboard.geometry("400x300")
+    # Create the main Tkinter window for the dashboard
+    dashboard = tk.Tk()  # Create a Tkinter window object
+    dashboard.title("Dashboard")  # Set the window title
+    dashboard.geometry("400x300")  # Set the size of the window
 
-    # Customer details
-    tk.Label(dashboard, text="Customer", font=("Arial", 8, "bold")).place(x=8, y=8)
-    tk.Label(dashboard, text=f"Account number:\n {data[dbaseMap["accno"]]}", font=("Arial", 9)).place(x=10, y=35)
+    # Displaying customer details in the dashboard
+    # The account number is extracted from the 'data' dictionary using 'dbaseMap["accno"]'
+    tk.Label(dashboard, text="Customer", font=("Arial", 8, "bold")).place(x=8, y=8)  # Label for "Customer"
+    tk.Label(dashboard, text=f"Account number:\n {data[dbaseMap['accno']]}", font=("Arial", 9)).place(x=10, y=35)  # Display account number from data
 
-    tk.Button(dashboard, text="Balance", command=lambda: show_balance(data)).pack(pady=5)
-    tk.Button(dashboard, text="Transfer", command=lambda: open_transfer_tab(data)).pack(pady=5)
-    tk.Button(dashboard, text="Currency", command=open_currency_tab).pack(pady=5)
-    tk.Button(dashboard, text="Help", command=show_help).pack(pady=5)
-    tk.Button(dashboard, text="Richest customers", command=display_sorted_data).pack(pady=5)
+    # Create buttons for different functionalities in the dashboard:
+    tk.Button(dashboard, text="Balance", command=lambda: show_balance(data)).pack(pady=5)  # Button to show balance
+    tk.Button(dashboard, text="Transfer", command=lambda: open_transfer_tab(data)).pack(pady=5)  # Button to open transfer tab
+    tk.Button(dashboard, text="Currency", command=open_currency_tab).pack(pady=5)  # Button to open currency tab
+    tk.Button(dashboard, text="Help", command=show_help).pack(pady=5)  # Button to open help section
+    tk.Button(dashboard, text="Richest customers", command=display_sorted_data).pack(pady=5)  # Button to show sorted richest customers
 
+    # Create a button to remove an account
     remove_button = tk.Button(dashboard, text="Remove Account", fg="red", command=lambda: remove_account(data, dashboard))
-    remove_button.pack(side=tk.LEFT, padx=10, pady=20)
+    remove_button.pack(side=tk.LEFT, padx=10, pady=20)  # Place the button on the left side with padding
+
+    # Start the Tkinter event loop to display the dashboard window
     dashboard.mainloop()
+
 
 
 def login():
