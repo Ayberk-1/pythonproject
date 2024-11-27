@@ -21,41 +21,39 @@ def bubble_sort(customers):
                 customers[j], customers[j+1] = customers[j+1], customers[j]
     return customers
 def display_sorted_data():
-    # Create a new window for displaying sorted data
+    # Create a new window to display sorted customer data
     sorted_data_window = tk.Toplevel()
-    sorted_data_window.title("Richest custoemrs")
-    sorted_data_window.geometry("400x400")
+    sorted_data_window.title("Richest customers")  # Title of the window
+    sorted_data_window.geometry("400x400")  # Set the window size
 
-    # Fetch all customer data
+    # Fetch all customer data from the database
     cursor = dbase.execute("SELECT * FROM customer")
     customers = cursor.fetchall()
 
-    # Sort the customers by balance using Bubble Sort
+    # Sort the customers by balance in descending order
     sorted_customers = bubble_sort(customers)
 
-    # Add a title label
+    # Add a title label to the window
     tk.Label(sorted_data_window, text="Sorted Customers by Balance", font=("Arial", 14, "bold")).pack(pady=10)
 
-    # Create a frame for the data
+    # Create a frame to hold the sorted data
     data_frame = tk.Frame(sorted_data_window)
     data_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-    # Add column headers
+    # Add column headers for Name, Location, and Balance
     headers = ["Name", "Location", "Balance"]
     for i, header in enumerate(headers):
         tk.Label(data_frame, text=header, font=("Arial", 10, "bold"), relief=tk.GROOVE, width=15).grid(row=0, column=i)
 
-    # Populate the rows with only Name, Location, and Balance
+    # Populate the rows with the sorted data
     for row_index, customer in enumerate(sorted_customers, start=1):
-        # Extract Name (index 1), Location (index 3), and Balance (index 4) for display
+        # Extract Name, Location, and Balance fields
         values = [customer[1], customer[3], customer[4]]
         for col_index, value in enumerate(values):
             tk.Label(data_frame, text=value, font=("Arial", 10), relief=tk.RIDGE, width=15).grid(row=row_index, column=col_index)
 
-
-    # Add a close button
+    # Add a close button to close the window
     tk.Button(sorted_data_window, text="Close", command=sorted_data_window.destroy).pack(pady=10)
-
 
 
 def open_register_tab():
@@ -83,9 +81,9 @@ def open_register_tab():
 
     def register_account():
         # Retrieve user inputs
-        name = name_entry.get()
+        name = name_entry.get().upper()
         password = password_entry.get()
-        country = country_entry.get()
+        country = country_entry.get().upper()
         balance = balance_entry.get()
 
         # Input validation
@@ -188,11 +186,14 @@ dbase.execute(''' CREATE TABLE IF NOT EXISTS customer(
 dbaseMap = {"accno":0,"name":1,"password":2,"location":3,"balance":4}
 
 #--------------------------------------------------
+
 def insert_data(ACCNO,NAME,PASSWORD,LOCATION,BALANCE):
     dbase.execute('''INSERT INTO customer(ACCNO,NAME,PASSWORD,LOCATION,BALANCE)
                     VALUES(?,?,?,?,?)''',(ACCNO,NAME,PASSWORD,LOCATION,BALANCE))
     dbase.commit()
+
 #----------------------------------------------------------------------
+
 def read_data(id,column="ACCNO"):
     # query = f"SELECT * FROM customer WHERE {column} = ?"
     # data = dbase.execute(query,(id,))
@@ -201,17 +202,24 @@ def read_data(id,column="ACCNO"):
     cursor = dbase.execute(query, (id,))
     result = cursor.fetchone()  # Fetch the first row of the result
     return result if result else False
+
 #----------------------------------------------------------------------
+
 def update_data(column,value,id):
     query = f"UPDATE customer SET {column} = ? WHERE ACCNO = ?"
     dbase.execute(query, (value, id))
     dbase.commit()
+
 #----------------------------------------------------------------------
+
 def delete_data(id):
     dbase.execute("DELETE FROM customer WHERE ACCNO=?", (id,))
 
+
     dbase.commit()
+
 #----------------------------------------------------------------------
+
 def transfer(id1,id2,amount):
     query = "SELECT ACCNO, BALANCE FROM customer WHERE ACCNO = ?"
     data = dbase.execute(query, (id1,))
@@ -225,16 +233,10 @@ def transfer(id1,id2,amount):
     update_data("BALANCE",balance1,id1)
     update_data("BALANCE",balance2,id2)
     dbase.commit()
+        
 
 #----------------------------------------------------------------------
 
-#--------------------------------------------------------
-
-# transfer(10502802774,63096821694,100)
-# insert_data("alex","345","brazil","2341")
-# update_data("location","hello",12312)
-# read_data()
-# dbase.commit()
 def show_currency_rates():
     # Get user input currency and convert to uppercase
     target_currency = currency_entry.get().upper()
@@ -389,6 +391,7 @@ def open_dashboard(data):
     remove_button.pack(side=tk.LEFT, padx=10, pady=20)
     dashboard.mainloop()
 
+
 def login():
     accno = int(accno_entry.get())
     password = int(password_entry.get())
@@ -399,17 +402,19 @@ def login():
         return
     
     if password == record[dbaseMap["password"]]:
-        messagebox.showinfo("Login Successful","hello "+ record[dbaseMap["name"]])
+        messagebox.showinfo("Login Successful","Welcome "+ record[dbaseMap["name"]])
         root.destroy()
         open_dashboard(record)
         return 
     else:
         messagebox.showerror("Login Failed", "Incorrect password.")
 
+
 def show_balance(data): messagebox.showinfo("Balance", f"Your balance is {data[dbaseMap["balance"]]}.")
 def show_transfer(): messagebox.showinfo("Transfer", "Transfer feature coming soon.")
 def show_currency(): messagebox.showinfo("Currency", "Currency feature coming soon.")
 def show_help(): messagebox.showinfo("Help", "For help, contact support@example.com.")
+
 
 # Login window
 root = tk.Tk()
