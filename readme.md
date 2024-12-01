@@ -11,6 +11,7 @@ I confirm that this assignment is my own work.
 Where I have referred to academic sources, I have provided in-text citations and included the sources in the final reference list.
 
 ## Introduction
+u can login with(accoutn number:742539, password:123456)
 This is basic bank application which use sqlite3 for keep data and tkinter for visualization.
 Press register button and fill fields and make sure remember your account number than you can login your account.
 Balance button:When u press the balance button it will show your current balance.
@@ -26,13 +27,13 @@ Remove account:It removes your account.
 To run the app, ensure you have Python installed, and then install the required libraries using the following command:
 
 pip install requests
-pup install sqlite3
+pip install sqlite3
 pip install matplotlib
 (other libraries should be already in python)
 
 ### Running the Game
 ```python
-pythonproject5.py
+main.py
 ```
 
 
@@ -44,6 +45,7 @@ The following libraries are used in this project:
 - datetime
 - matplotlib.pyplot
 - os
+- request
 
 ## Project Structure
 - Error handling
